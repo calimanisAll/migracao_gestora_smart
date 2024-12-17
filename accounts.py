@@ -111,8 +111,8 @@ try:
 
         # Inserindo na tabela customers
         postgres_cursor.execute("""
-            INSERT INTO customers (id, created_at, razao_social, name, cpf_cnpj, vertical, blacklist, bloqueio_sms, email, telefone, updated_at)
-            VALUES (%s, %s, %s, COALESCE(%s, %s), %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO customers (id, created_at, razao_social, name, fantasy_name, cpf_cnpj, vertical, blacklist, bloqueio_sms, email, telefone, updated_at)
+            VALUES (%s, %s, %s, %s, COALESCE(%s, %s), %s, %s, %s, %s, %s, %s, %s)
         """, (
             account['id_account'],
             account['created_at_account'],
