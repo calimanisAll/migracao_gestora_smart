@@ -112,7 +112,7 @@ try:
         # Inserindo na tabela customers
         postgres_cursor.execute("""
             INSERT INTO customers (id, created_at, razao_social, name, fantasy_name, cpf_cnpj, vertical, blacklist, bloqueio_sms, email, telefone, updated_at)
-            VALUES (%s, %s, %s, %s, COALESCE(%s, %s), %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, COALESCE(%s), %s, %s, %s, %s, %s, %s)
         """, (
             account['id_account'],
             account['created_at_account'],
@@ -169,7 +169,8 @@ try:
 
         # Incrementa o contador e imprime o progresso
         row_count += 1
-        print(f"Linha {row_count} inserida com sucesso." + "ID: " + str(account['id_account']))
+        print(f"Linha {row_count} inserida com sucesso." +
+              "ID: " + str(account['id_account']))
 
     postgres_conn.commit()
     print(f"Total de linhas inseridas: {row_count}")
