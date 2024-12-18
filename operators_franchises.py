@@ -5,13 +5,13 @@ import mysql.connector
 import psycopg2
 from psycopg2.extras import DictCursor
 import psycopg2.extras
-
 from dotenv import load_dotenv
-
 import os
 
+# Carregar variáveis de ambiente
 load_dotenv()
 
+# Configurações do MySQL e PostgreSQL
 mysql_config = {
     'host': os.getenv('MYSQL_DATABASE_HOST'),
     'user': os.getenv('MYSQL_DATABASE_USER'),
@@ -25,14 +25,6 @@ postgres_config = {
     'password': os.getenv('POSTGRES_DATABASE_PASSWORD'),
     'database': os.getenv('POSTGRES_DATABASE'),
 }
-
-
-mysql_conn = mysql.connector.connect(**mysql_config)
-mysql_cursor = mysql_conn.cursor(dictionary=True)
-
-postgres_conn = psycopg2.connect(**postgres_config)
-postgres_cursor = postgres_conn.cursor(
-    cursor_factory=psycopg2.extras.DictCursor)
 
 mysql_conn = mysql.connector.connect(**mysql_config)
 mysql_cursor = mysql_conn.cursor(dictionary=True)
@@ -53,17 +45,14 @@ try:
 
     row_count_operators = 0
     simcard_cut_ids = [1, 2, 3, 4]  # IDs dos cortes de SIM card
-    # Inicialização do ID autoincrementado para a tabela crm_operator_simcard_cut
-    auto_id_simcard = 1
+    auto_id_simcard = 1  # Inicialização do ID autoincrementado para crm_operators_simcard_cut
 
     for operator in operators:
-        # Definir a moeda com base no nome do operador
+        # Definir moeda e valor do SMS
         coin = "R$" if operator['name'] != "Sierra" else "U$"
-
-        # Gerar um valor aleatório para SMS entre 0.50 e 2.50
         sms = round(random.uniform(0.50, 2.50), 2)
 
-        # Inserir na tabela crm_operators
+        # Inserir operador em crm_operators
         postgres_cursor.execute("""
             INSERT INTO crm_operators (
                 id,
@@ -73,16 +62,14 @@ try:
                 created_at,
                 updated_at
             )
-            VALUES (
-                %s, %s, %s, %s, %s, %s
-            )
+            VALUES (%s, %s, %s, %s, %s, %s)
         """, (
-            operator['id'],          # ID
-            operator['name'],        # Nome
-            coin,                    # Moeda
-            sms,                     # Valor do SMS
-            operator['created_at'],  # Data de criação
-            datetime.now()           # Data de atualização
+            operator['id'],
+            operator['name'],
+            coin,
+            sms,
+            operator['created_at'],
+            datetime.now()
         ))
 
         # Associar todos os simcard_cut_ids ao operador
@@ -93,19 +80,16 @@ try:
                     operator_id,
                     simcard_cut_id
                 )
-                VALUES (
-                    %s, %s, %s
-                )
+                VALUES (%s, %s, %s)
             """, (
-                auto_id_simcard,       # ID autoincrementado
-                operator['id'],        # ID do operador
-                simcard_cut_id         # ID do corte do SIM card
+                auto_id_simcard,
+                operator['id'],
+                simcard_cut_id
             ))
             auto_id_simcard += 1
 
         row_count_operators += 1
-        print(f"Operadora {row_count_operators} inserida com sucesso. ID: {
-              operator['id']}")
+        print(f"Operadora {row_count_operators} inserida com sucesso. ID: {operator['id']}")
 
     # Inserção de Franquias
     mysql_cursor.execute("""
@@ -119,11 +103,11 @@ try:
     franchises = mysql_cursor.fetchall()
 
     row_count_franchises = 0
-    auto_id_franchise = 1  # Inicialização do ID autoincrementado para a tabela crm_franchises
+    auto_id_franchise = 1
 
     for operator in operators:
         for franchise in franchises:
-            # Inserir cada combinação de operador e franquia na tabela crm_franchises
+            # Inserir franquia em crm_franchises
             postgres_cursor.execute("""
                 INSERT INTO crm_franchises (
                     id,
@@ -134,24 +118,73 @@ try:
                     created_at,
                     updated_at
                 )
-                VALUES (
-                    %s, %s, %s, %s, %s, %s, %s
-                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (
-                auto_id_franchise,     # ID autoincrementado
-                operator['id'],        # ID do operador
-                franchise['franchise'],  # Nome da franquia
-                franchise['type'],     # Tipo da franquia
-                True,                  # Status ativo
-                franchise['created_at'],  # Data de criação
-                datetime.now()         # Data de atualização
+                auto_id_franchise,
+                operator['id'],
+                franchise['franchise'],
+                franchise['type'],
+                True,
+                franchise['created_at'],
+                datetime.now()
             ))
             auto_id_franchise += 1
-
             row_count_franchises += 1
-            print(f"Franquia {row_count_franchises} inserida com sucesso. Operador: {
-                  operator['id']}, Franquia: {franchise['franchise']}")
+            print(f"Franquia {row_count_franchises} inserida com sucesso. Operador: {operator['id']}, Franquia: {franchise['franchise']}")
 
+    # Criar operadora "N/A"
+    postgres_cursor.execute("SELECT MAX(id) FROM crm_operators")
+    result = postgres_cursor.fetchone()
+    next_operator_id = (result[0] + 1) if result and result[0] is not None else 1
+
+    postgres_cursor.execute("""
+        INSERT INTO crm_operators (
+            id,
+            name,
+            coin,
+            sms,
+            created_at,
+            updated_at
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        next_operator_id,
+        "N/A",
+        "R$",
+        0.00,
+        datetime.now(),
+        datetime.now()
+    ))
+    print("Operadora N/A inserida com sucesso.")
+
+    # Criar franquia "N/A"
+    postgres_cursor.execute("SELECT MAX(id) FROM crm_franchises")
+    result = postgres_cursor.fetchone()
+    next_franchise_id = (result[0] + 1) if result and result[0] is not None else 1
+
+    postgres_cursor.execute("""
+        INSERT INTO crm_franchises (
+            id,
+            operator_id,
+            franchise,
+            type,
+            status,
+            created_at,
+            updated_at
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (
+        next_franchise_id,
+        next_operator_id,
+        "N/A",
+        "default",
+        True,
+        datetime.now(),
+        datetime.now()
+    ))
+    print("Franquia N/A inserida com sucesso.")
+
+    # Confirmar alterações no banco
     postgres_conn.commit()
     print(f"Total de operadoras inseridas: {row_count_operators}")
     print(f"Total de franquias inseridas: {row_count_franchises}")

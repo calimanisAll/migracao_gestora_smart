@@ -6,11 +6,11 @@ import psycopg2
 import uuid
 from psycopg2.extras import DictCursor
 from dotenv import load_dotenv
-
 import os
 
 load_dotenv()
 
+# Configuração dos bancos de dados
 mysql_config = {
     'host': os.getenv('MYSQL_DATABASE_HOST'),
     'user': os.getenv('MYSQL_DATABASE_USER'),
@@ -25,7 +25,7 @@ postgres_config = {
     'database': os.getenv('POSTGRES_DATABASE'),
 }
 
-# Mapeamento para as operadoras
+# Mapeamentos
 operator_mapping = {
     "Vivo": 1,
     "Vivo (Pública)": 1,
@@ -70,20 +70,34 @@ def convert_to_boolean(value):
 
 def clean_numeric(value):
     if isinstance(value, str):
-        # Remover caracteres não numéricos, exceto ponto e vírgula
-        value = ''.join(filter(lambda x: x.isdigit()
-                        or x in [',', '.'], value))
-        # Substituir vírgulas por pontos (formato padrão para PostgreSQL)
+        value = ''.join(filter(lambda x: x.isdigit() or x in [',', '.'], value))
         value = value.replace(',', '.')
-        # Se o valor ainda não for válido, retorne None
         try:
             return float(value)
         except ValueError:
             return None
-    return value  # Retorna diretamente se já for um número ou None
+    return value
 
 
 try:
+    # Obter o ID da operadora "N/A"
+    postgres_cursor.execute("""
+        SELECT id FROM crm_operators WHERE name = %s
+    """, ("N/A",))
+    na_operator_result = postgres_cursor.fetchone()
+    na_operator_id = na_operator_result['id'] if na_operator_result else None
+
+    # Obter o ID da franquia "N/A"
+    postgres_cursor.execute("""
+        SELECT id FROM crm_franchises WHERE franchise = %s AND operator_id = %s
+    """, ("N/A", na_operator_id))
+    na_franchise_result = postgres_cursor.fetchone()
+    na_franchise_id = na_franchise_result['id'] if na_franchise_result else None
+
+    if not na_operator_id or not na_franchise_id:
+        raise Exception("A operadora ou franquia 'N/A' não foi encontrada no banco de dados.")
+
+    # Buscar contratos no MySQL
     mysql_cursor.execute("""
     SELECT
         id_contract,
@@ -116,22 +130,24 @@ try:
 
     for contract in contracts:
         try:
-            # Consultar o ID do vendedor no PostgreSQL
+            # Buscar o ID do vendedor
             postgres_cursor.execute("""
                 SELECT id FROM users WHERE username = %s
             """, (contract['vendor_contract'],))
             user_result = postgres_cursor.fetchone()
-
             null_uuid = str(uuid.UUID("00000000-0de0-0c0f-0000-fdf0cfb00000"))
             vendor_id = user_result['id'] if user_result else null_uuid
 
-            # Traduzir o código da operadora usando o mapeamento
+            # Determinar o ID da operadora
             operator_name = operator_mapping.get(contract['variable1_contract'], None)
+            operator_id = operator_name if operator_name else na_operator_id
 
-            # Consultar o ID da franquia no PostgreSQL
-            franchise_parts = contract['variable2_contract'].split(" ", 1)
-            franchise_value = franchise_parts[0] if len(franchise_parts) > 0 else None
-            franchise_type = franchise_parts[1] if len(franchise_parts) > 1 else None
+            # Determinar o ID da franquia
+            franchise_value, franchise_type = None, None
+            if contract['variable2_contract']:
+                franchise_parts = contract['variable2_contract'].split(" ", 1)
+                franchise_value = franchise_parts[0] if len(franchise_parts) > 0 else None
+                franchise_type = franchise_parts[1] if len(franchise_parts) > 1 else None
 
             postgres_cursor.execute("""
                 SELECT id FROM crm_franchises 
@@ -139,9 +155,9 @@ try:
             """, (franchise_value, franchise_type))
             franchise_result = postgres_cursor.fetchone()
 
-            franchise_id = franchise_result['id'] if franchise_result else None
+            franchise_id = franchise_result['id'] if franchise_result else na_franchise_id
 
-            # Limpar valores numéricos
+            # Conversão de valores numéricos
             mensalidade = clean_numeric(contract['variable4_contract'])
             ativacao = clean_numeric(contract['variable5_contract'])
             substituicao = clean_numeric(contract['variable6_contract'])
@@ -149,14 +165,12 @@ try:
             mb_excedente = clean_numeric(contract['variable8_contract'])
             cobranca = clean_numeric(contract['variable9_contract'])
 
-            # Converter loyaty_contract para booleano
+            # Conversão de fidelidade e status de aprovação
             loyaty = convert_to_boolean(contract['loyaty_contract'])
-
-            # Converter status de aprovação usando o mapeamento
             allcom_approval_status = approval_status_mapping.get(contract['aproved_allcom_contract'], 1)
             financial_approval_status = approval_status_mapping.get(contract['aproved_financial_contract'], 1)
 
-            # Inserir na tabela crm_contracts
+            # Inserir contrato no PostgreSQL
             postgres_cursor.execute("""
                 INSERT INTO crm_contracts (
                     id,
@@ -185,27 +199,27 @@ try:
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
             """, (
-                contract['id_contract'],  # ID
-                contract['created_at_contract'],  # Created At
-                vendor_id,  # Vendedor
-                contract['client_contract'],  # Cliente
-                contract['type_contract'],  # Type Contract
-                operator_name,  # Operadora
-                franchise_id,  # Franquia
-                contract['variable3_contract'],  # Moeda
-                mensalidade,  # Mensalidade
-                ativacao,  # Ativação
-                substituicao,  # Substituição
-                cancelamento,  # Cancelamento
-                mb_excedente,  # MB Excedente
-                cobranca,  # Cobrança
-                loyaty,  # Fidelidade
-                allcom_approval_status,  # Fase Aprovação
-                contract['date_aproved_allcom_contract'],  # Commercial Approved At
-                financial_approval_status,  # Fase Aprovação Cliente
-                contract['date_aproved_client_contract'],  # Customer Approved At
-                contract['obs_contract'],  # Observações
-                contract['last_update_contract'] or datetime.now()  # Updated At
+                contract['id_contract'],
+                contract['created_at_contract'],
+                vendor_id,
+                contract['client_contract'],
+                contract['type_contract'],
+                operator_id,
+                franchise_id,
+                contract['variable3_contract'],
+                mensalidade,
+                ativacao,
+                substituicao,
+                cancelamento,
+                mb_excedente,
+                cobranca,
+                loyaty,
+                allcom_approval_status,
+                contract['date_aproved_allcom_contract'],
+                financial_approval_status,
+                contract['date_aproved_client_contract'],
+                contract['obs_contract'],
+                contract['last_update_contract'] or datetime.now()
             ))
 
             row_count += 1
@@ -214,8 +228,6 @@ try:
         except Exception as inner_e:
             print("Erro interno:", inner_e)
             print(f"ID do contrato com erro: {contract.get('id_contract', 'N/A')}")
-            for key, value in contract.items():
-                print(f"Coluna: {key}, Valor: {value}")
             postgres_conn.rollback()
 
     postgres_conn.commit()
@@ -230,3 +242,4 @@ finally:
     mysql_conn.close()
     postgres_cursor.close()
     postgres_conn.close()
+
