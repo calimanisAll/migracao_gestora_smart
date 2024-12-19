@@ -1,6 +1,5 @@
 from datetime import datetime
 import random
-import time
 import traceback
 import mysql.connector
 import psycopg2
@@ -34,7 +33,21 @@ postgres_conn = psycopg2.connect(**postgres_config)
 postgres_cursor = postgres_conn.cursor(cursor_factory=DictCursor)
 
 try:
-    start_time = time.time()
+    # Verificar se a operadora "Oi" já existe
+    mysql_cursor.execute("SELECT id FROM operators WHERE name = 'Oi'")
+    oi_operator = mysql_cursor.fetchone()
+
+    if not oi_operator:
+        # Inserir a operadora "Oi"
+        mysql_cursor.execute("""
+            INSERT INTO operators (name, created_at)
+            VALUES (%s, %s)
+        """, ('Oi', datetime.now()))
+        mysql_conn.commit()
+        print("Operadora 'Oi' adicionada com sucesso no MySQL.")
+    else:
+        print("Operadora 'Oi' já existe no MySQL.")
+
     # Inserção de Operadoras
     mysql_cursor.execute("""
     SELECT
@@ -133,6 +146,33 @@ try:
             auto_id_franchise += 1
             row_count_franchises += 1
             print(f"Franquia {row_count_franchises} inserida com sucesso. Operador: {operator['id']}, Franquia: {franchise['franchise']}")
+
+    # Adicionar franquias 100GB VOZ ILIMITADO e 50GB VOZ ILIMITADO
+    for operator in operators:
+        for franchise_name in ["100GB VOZ ILIMITADO", "50GB VOZ ILIMITADO"]:
+            postgres_cursor.execute("""
+                INSERT INTO crm_franchises (
+                    id,
+                    operator_id,
+                    franchise,
+                    type,
+                    status,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                auto_id_franchise,
+                operator['id'],
+                franchise_name,
+                "default",
+                True,
+                datetime.now(),
+                datetime.now()
+            ))
+            auto_id_franchise += 1
+            row_count_franchises += 1
+            print(f"Franquia adicional '{franchise_name}' inserida com sucesso para operador {operator['id']}")
 
     # Criar operadora "N/A"
     postgres_cursor.execute("SELECT MAX(id) FROM crm_operators")

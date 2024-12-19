@@ -43,7 +43,9 @@ operator_mapping = {
     "Claro BL": 22,
     "Algar 3 Operadoras": 23,
     "Claro CATM1": 24,
-    "Sierra": 25
+    "Sierra": 25,
+    "Oi": 26,
+    "OI": 26,
 }
 
 approval_status_mapping = {
@@ -71,7 +73,8 @@ def convert_to_boolean(value):
 
 def clean_numeric(value):
     if isinstance(value, str):
-        value = ''.join(filter(lambda x: x.isdigit() or x in [',', '.'], value))
+        value = ''.join(filter(lambda x: x.isdigit()
+                        or x in [',', '.'], value))
         value = value.replace(',', '.')
         try:
             return float(value)
@@ -97,7 +100,8 @@ try:
     na_franchise_id = na_franchise_result['id'] if na_franchise_result else None
 
     if not na_operator_id or not na_franchise_id:
-        raise Exception("A operadora ou franquia 'N/A' não foi encontrada no banco de dados.")
+        raise Exception(
+            "A operadora ou franquia 'N/A' não foi encontrada no banco de dados.")
 
     # Buscar contratos no MySQL
     mysql_cursor.execute("""
@@ -141,15 +145,18 @@ try:
             vendor_id = user_result['id'] if user_result else null_uuid
 
             # Determinar o ID da operadora
-            operator_name = operator_mapping.get(contract['variable1_contract'], None)
+            operator_name = operator_mapping.get(
+                contract['variable1_contract'], None)
             operator_id = operator_name if operator_name else na_operator_id
 
             # Determinar o ID da franquia
             franchise_value, franchise_type = None, None
             if contract['variable2_contract']:
                 franchise_parts = contract['variable2_contract'].split(" ", 1)
-                franchise_value = franchise_parts[0] if len(franchise_parts) > 0 else None
-                franchise_type = franchise_parts[1] if len(franchise_parts) > 1 else None
+                franchise_value = franchise_parts[0] if len(
+                    franchise_parts) > 0 else None
+                franchise_type = franchise_parts[1] if len(
+                    franchise_parts) > 1 else None
 
             postgres_cursor.execute("""
                 SELECT id FROM crm_franchises 
@@ -169,8 +176,10 @@ try:
 
             # Conversão de fidelidade e status de aprovação
             loyaty = convert_to_boolean(contract['loyaty_contract'])
-            allcom_approval_status = approval_status_mapping.get(contract['aproved_allcom_contract'], 1)
-            financial_approval_status = approval_status_mapping.get(contract['aproved_financial_contract'], 1)
+            allcom_approval_status = approval_status_mapping.get(
+                contract['aproved_allcom_contract'], 1)
+            financial_approval_status = approval_status_mapping.get(
+                contract['aproved_financial_contract'], 1)
 
             # Inserir contrato no PostgreSQL
             postgres_cursor.execute("""
@@ -225,17 +234,19 @@ try:
             ))
 
             row_count += 1
-            print(f"Linha {row_count} inserida com sucesso. ID do contrato: {contract['id_contract']}")
+            print(f"Linha {row_count} inserida com sucesso. ID do contrato: {
+                  contract['id_contract']}")
 
         except Exception as inner_e:
             print("Erro interno:", inner_e)
-            print(f"ID do contrato com erro: {contract.get('id_contract', 'N/A')}")
+            print(f"ID do contrato com erro: {
+                  contract.get('id_contract', 'N/A')}")
             postgres_conn.rollback()
 
     postgres_conn.commit()
     print(f"Total de linhas inseridas: {row_count}")
-    
-    end_time = time.time() 
+
+    end_time = time.time()
     print(f"Tempo total de execução: {end_time - start_time:.2f} segundos")
 
 except Exception as e:
@@ -247,4 +258,3 @@ finally:
     mysql_conn.close()
     postgres_cursor.close()
     postgres_conn.close()
-
