@@ -1,5 +1,6 @@
 from datetime import datetime
 import random
+import time
 import traceback
 import mysql.connector
 import psycopg2
@@ -33,6 +34,7 @@ postgres_conn = psycopg2.connect(**postgres_config)
 postgres_cursor = postgres_conn.cursor(cursor_factory=DictCursor)
 
 try:
+    start_time = time.time()
     # Inserção de Operadoras
     mysql_cursor.execute("""
     SELECT

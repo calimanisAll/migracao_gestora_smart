@@ -1,5 +1,6 @@
 import random
 from datetime import datetime
+import time
 import traceback
 import mysql.connector
 import psycopg2
@@ -80,6 +81,7 @@ def clean_numeric(value):
 
 
 try:
+    start_time = time.time()
     # Obter o ID da operadora "N/A"
     postgres_cursor.execute("""
         SELECT id FROM crm_operators WHERE name = %s
@@ -135,7 +137,7 @@ try:
                 SELECT id FROM users WHERE username = %s
             """, (contract['vendor_contract'],))
             user_result = postgres_cursor.fetchone()
-            null_uuid = str(uuid.UUID("00000000-0de0-0c0f-0000-fdf0cfb00000"))
+            null_uuid = str(uuid.UUID("c531f1e9-b8b8-40e8-8efa-5bed8cdaae64"))
             vendor_id = user_result['id'] if user_result else null_uuid
 
             # Determinar o ID da operadora
@@ -232,6 +234,9 @@ try:
 
     postgres_conn.commit()
     print(f"Total de linhas inseridas: {row_count}")
+    
+    end_time = time.time() 
+    print(f"Tempo total de execução: {end_time - start_time:.2f} segundos")
 
 except Exception as e:
     print("Erro geral:", e)

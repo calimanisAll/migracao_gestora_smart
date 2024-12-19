@@ -7,9 +7,7 @@ import psycopg2
 from psycopg2.extras import DictCursor
 import psycopg2.extras
 import time
-
 from dotenv import load_dotenv
-
 import os
 
 load_dotenv()
@@ -27,14 +25,6 @@ postgres_config = {
     'password': os.getenv('POSTGRES_DATABASE_PASSWORD'),
     'database': os.getenv('POSTGRES_DATABASE'),
 }
-
-
-mysql_conn = mysql.connector.connect(**mysql_config)
-mysql_cursor = mysql_conn.cursor(dictionary=True)
-
-postgres_conn = psycopg2.connect(**postgres_config)
-postgres_cursor = postgres_conn.cursor(
-    cursor_factory=psycopg2.extras.DictCursor)
 
 mysql_conn = mysql.connector.connect(**mysql_config)
 mysql_cursor = mysql_conn.cursor(dictionary=True)
@@ -55,20 +45,18 @@ def convert_to_boolean(value):
 
 def clean_numeric(value):
     if isinstance(value, str):
-        # Remover caracteres não numéricos, exceto ponto e vírgula
-        value = ''.join(filter(lambda x: x.isdigit()
-                        or x in [',', '.'], value))
-        # Substituir vírgulas por pontos (formato padrão para PostgreSQL)
+        value = ''.join(filter(lambda x: x.isdigit() or x in [',', '.'], value))
         value = value.replace(',', '.')
-        # Se o valor ainda não for válido, retorne None
         try:
             return float(value)
         except ValueError:
             return None
-    return value  # Retorna diretamente se já for um número ou None
+    return value
 
 
 try:
+    start_time = time.time()  # Início da medição do tempo
+
     mysql_cursor.execute("""
         SELECT
             id_rule,
@@ -98,8 +86,7 @@ try:
         """, (rule['user_rule'],))
         user_result = postgres_cursor.fetchone()
 
-        null_uuid = str(uuid.UUID("00000000-0de0-0c0f-0000-fdf0cfb00000"))
-
+        null_uuid = str(uuid.UUID("c531f1e9-b8b8-40e8-8efa-5bed8cdaae64"))
         vendor_id = user_result['id'] if user_result else null_uuid
 
         if "Hardware" in rule.get('type_rule', ''):
@@ -108,7 +95,7 @@ try:
                     SELECT id, brand, model
                     FROM crm_hardwares
                     WHERE brand = %s AND model LIKE CONCAT('%%', %s, '%%')
-                    """,
+                """,
                 (rule.get('variable1_rule'), rule.get('variable2_rule'))
             )
             hardware_result = postgres_cursor.fetchone()
@@ -120,45 +107,40 @@ try:
             if preco_final is None:
                 preco_final = preco_inicial
 
-            quantidade = rule.get('variable6_rule') if rule.get(
-                'variable6_rule') is not None else 0
-            comissao = rule.get('variable6_rule') if rule.get(
-                'variable6_rule') is not None else 0
+            quantidade = rule.get('variable6_rule') or 0
+            comissao = rule.get('variable6_rule') or 0
 
             postgres_cursor.execute("""
-                        INSERT INTO crm_regra_aprovacao_hardware (
-                            id,
-                            hardware_id,
-                            preco_inicial,
-                            preco_final,
-                            quantidade,
-                            comissao,
-                            possui_entrada,
-                            prazo_pagamento,
-                            created_by,
-                            data_criacao,
-                            tipo_venda
-                        )
-                        VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                        )
-                    """, (
-                auto_id,     # ID autoincrementado
-                hardware_result['id'],  # ID do hardware
-                preco_inicial,  # Preço inicial
-                preco_final,  # Preço final
-                # rule['variable6_rule'],  # Quantidade
+                INSERT INTO crm_regra_aprovacao_hardware (
+                    id,
+                    hardware_id,
+                    preco_inicial,
+                    preco_final,
+                    quantidade,
+                    comissao,
+                    possui_entrada,
+                    prazo_pagamento,
+                    created_by,
+                    data_criacao,
+                    tipo_venda
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """, (
+                auto_id,
+                hardware_result['id'],
+                preco_inicial,
+                preco_final,
                 quantidade,
-                # rule['variable7_rule'],  # Comissão
                 comissao,
-                possui_entrada,  # Possui entrada
-                rule['variable4_rule'],  # Prazo de pagamento
-                vendor_id,  # ID do vendedor
-                rule['created_at_rule'],  # Data de criação
-                rule['variable3_rule'],  # Tipo de venda
+                possui_entrada,
+                rule['variable4_rule'],
+                vendor_id,
+                rule['created_at_rule'],
+                rule['variable3_rule'],
             ))
             auto_id += 1
-
             row_count_hw_rules += 1
 
         if "Simcard" in rule.get('type_rule', ''):
@@ -170,40 +152,38 @@ try:
                     WHERE o.name = %s
                     AND f.franchise = %s
                     AND f.type = %s
-                    """,
+                """,
                 (
                     rule.get('variable1_rule'),
-                    # Pega a franquia (parte antes do espaço)
                     rule.get('variable2_rule').split(' ')[0],
-                    # Pega o tipo (parte depois do espaço)
                     ' '.join(rule.get('variable2_rule').split(' ')[1:]),
                 )
             )
 
             simcard_result = postgres_cursor.fetchone()
             postgres_cursor.execute("""
-                        INSERT INTO crm_regra_aprovacao_simcard(
-                            id_regra,
-                            operadora_id,
-                            franquia_id,
-                            mensalidade,
-                            created_at,
-                            updated_at,
-                            tipo,
-                            usuario_criacao
-                        )
-                        VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s
-                        )
-                    """, (
-                auto_id,     # ID autoincrementado
-                simcard_result['operator_id'],  # ID da operadora
-                simcard_result['franchise_id'],  # ID da franquia
-                rule['variable3_rule'],  # Mensalidade
-                rule['created_at_rule'],  # Data de criação
-                datetime.now(),  # Data de atualização
+                INSERT INTO crm_regra_aprovacao_simcard(
+                    id_regra,
+                    operadora_id,
+                    franquia_id,
+                    mensalidade,
+                    created_at,
+                    updated_at,
+                    tipo,
+                    usuario_criacao
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """, (
+                auto_id,
+                simcard_result['operator_id'],
+                simcard_result['franchise_id'],
+                rule['variable3_rule'],
+                rule['created_at_rule'],
+                datetime.now(),
                 simcard_result['type'],
-                vendor_id  # ID do vendedor
+                vendor_id
             ))
             auto_id += 1
             row_count_sc_rules += 1
@@ -212,6 +192,9 @@ try:
 
     print(f"Total de regras de Simcard inseridas: {row_count_sc_rules}")
     print(f"Total de regras de Hardware inseridas: {row_count_hw_rules}")
+
+    end_time = time.time()  # Fim da medição do tempo
+    print(f"Tempo total de execução: {end_time - start_time:.2f} segundos")
 
 except mysql.connector.Error as mysql_error:
     print("Erro no MySQL.")

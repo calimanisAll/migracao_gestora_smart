@@ -1,4 +1,5 @@
 from datetime import datetime
+import time
 import traceback
 import mysql.connector
 import psycopg2
@@ -34,6 +35,7 @@ postgres_cursor = postgres_conn.cursor(
     cursor_factory=psycopg2.extras.DictCursor)
 
 try:
+    start_time = time.time()
     mysql_cursor.execute("""
     SELECT
         id_account,
@@ -105,7 +107,7 @@ try:
         """, (account['vendor_account'],))
         user_result = postgres_cursor.fetchone()
 
-        null_uuid = str(uuid.UUID("00000000-0de0-0c0f-0000-fdf0cfb00000"))
+        null_uuid = str(uuid.UUID("c531f1e9-b8b8-40e8-8efa-5bed8cdaae64"))
 
         vendor_id = user_result['id'] if user_result else null_uuid
 
@@ -174,6 +176,9 @@ try:
 
     postgres_conn.commit()
     print(f"Total de linhas inseridas: {row_count}")
+    
+    end_time = time.time() 
+    print(f"Tempo total de execução: {end_time - start_time:.2f} segundos")
 
 except mysql.connector.Error as mysql_error:
     print("ID do erro: " + str(account['id_account']))

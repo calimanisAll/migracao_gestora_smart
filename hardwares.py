@@ -1,5 +1,6 @@
 from datetime import datetime
 import random
+import time
 import traceback
 import mysql.connector
 import psycopg2
@@ -60,6 +61,7 @@ family_mapping = {
 }
 
 try:
+    start_time = time.time()
     # Inserção de hardwares
     mysql_cursor.execute("""
     SELECT
@@ -76,7 +78,8 @@ try:
 
     for hardware in hardwares:
         # Determinar família com base no ID
-        family = family_mapping.get(hardware['id'], "Desconhecido")  # Valor padrão se ID não encontrado
+        # Valor padrão se ID não encontrado
+        family = family_mapping.get(hardware['id'], "Desconhecido")
 
         # Inserir na tabela crm_hardwares
         postgres_cursor.execute("""
@@ -103,10 +106,14 @@ try:
         ))
 
         row_count_hardwares += 1
-        print(f"Hardware {row_count_hardwares} inserido com sucesso. ID: {hardware['id']}")
+        print(f"Hardware {row_count_hardwares} inserido com sucesso. ID: {
+              hardware['id']}")
 
     postgres_conn.commit()
     print(f"Total de hardwares inseridos: {row_count_hardwares}")
+
+    end_time = time.time()
+    print(f"Tempo total de execução: {end_time - start_time:.2f} segundos")
 
 except mysql.connector.Error as mysql_error:
     print("Erro no MySQL.")
