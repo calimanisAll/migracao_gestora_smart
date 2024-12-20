@@ -48,6 +48,21 @@ try:
     else:
         print("Operadora 'Oi' já existe no MySQL.")
 
+    # Verificar se a operadora "Algar" já existe
+    mysql_cursor.execute("SELECT id FROM operators WHERE name = 'Algar'")
+    algar_operator = mysql_cursor.fetchone()
+
+    if not algar_operator:
+        # Inserir a operadora "Algar"
+        mysql_cursor.execute("""
+            INSERT INTO operators (name, created_at)
+            VALUES (%s, %s)
+        """, ('Algar', datetime.now()))
+        mysql_conn.commit()
+        print("Operadora 'Algar' adicionada com sucesso no MySQL.")
+    else:
+        print("Operadora 'Algar' já existe no MySQL.")
+
     # Inserção de Operadoras
     mysql_cursor.execute("""
     SELECT
@@ -257,3 +272,4 @@ finally:
     mysql_conn.close()
     postgres_cursor.close()
     postgres_conn.close()
+
