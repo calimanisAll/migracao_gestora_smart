@@ -107,9 +107,10 @@ postgres_conn = psycopg2.connect(**postgres_config)
 postgres_cursor = postgres_conn.cursor(cursor_factory=DictCursor)
 
 try:
+    print("STARTING SCRIPT", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     # Consultar os pedidos no MySQL
     mysql_cursor.execute("""
-    SELECT * FROM orders WHERE type_order = 'Simcard'
+    SELECT * FROM orders  WHERE type_order IN ('Simcard', 'Substituição');
     """)
     orders = mysql_cursor.fetchall()
 
@@ -212,7 +213,7 @@ try:
         row_count += 1
 
     print(f"Total de linhas inseridas: {row_count}")
-
+    print("END SCRIPT", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 except Exception as e:
     print("Erro geral:")
     print(traceback.format_exc())
