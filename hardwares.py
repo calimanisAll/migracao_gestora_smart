@@ -62,7 +62,11 @@ family_mapping = {
 
 try:
     start_time = time.time()
-    # Inserção de hardwares
+
+    # Obter o maior ID existente na tabela `crm_hardwares`
+    
+
+    # Inserção de hardwares existentes no MySQL
     mysql_cursor.execute("""
     SELECT
         id,
@@ -78,7 +82,6 @@ try:
 
     for hardware in hardwares:
         # Determinar família com base no ID
-        # Valor padrão se ID não encontrado
         family = family_mapping.get(hardware['id'], "Desconhecido")
 
         # Inserir na tabela crm_hardwares
@@ -106,11 +109,54 @@ try:
         ))
 
         row_count_hardwares += 1
-        print(f"Hardware {row_count_hardwares} inserido com sucesso. ID: {
-              hardware['id']}")
+        print(f"Hardware {row_count_hardwares} inserido com sucesso. ID: {hardware['id']}")
+
+
+    postgres_cursor.execute("SELECT MAX(id) FROM crm_hardwares")
+    last_id = postgres_cursor.fetchone()[0]
+
+    # Inserção manual dos hardwares adicionais
+    manual_hardwares = [
+        {"brand": "Oneblock", "model": "BMS 4G", "type": "Venda"},
+        {"brand": "X3TECH", "model": "NT40", "type": "Venda"},
+        {"brand": "Oneblock", "model": "BMS 2G", "type": "Venda"},
+        {"brand": "Oneblock", "model": "BMS 2G v2", "type": "Venda"},
+        {"brand": "NEWTEC", "model": "JC400D – CÂMERA", "type": "Venda"},
+        {"brand": "Suntech", "model": "ST310U", "type": "Venda"},
+        {"brand": "Suntech", "model": "ST310UC", "type": "Venda"},
+        {"brand": "Suntech", "model": "ST8310", "type": "Venda"},
+    ]
+
+    for idx, hardware in enumerate(manual_hardwares, start=1):
+        # Incrementa o último ID para garantir unicidade
+        last_id += 1
+        postgres_cursor.execute("""
+            INSERT INTO crm_hardwares (
+                id,
+                brand,
+                model,
+                sell_type,
+                family,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                %s, %s, %s, %s, %s, %s, %s
+            )
+        """, (
+            last_id,
+            hardware['brand'],
+            hardware['model'],
+            hardware['type'],
+            "Rastreador",
+            datetime.now(),
+            datetime.now()
+        ))
+        print(f"Hardware manual {idx} inserido com sucesso. ID: {last_id}, Modelo: {hardware['model']}")
 
     postgres_conn.commit()
-    print(f"Total de hardwares inseridos: {row_count_hardwares}")
+    print(f"Total de hardwares inseridos automaticamente: {row_count_hardwares}")
+    print(f"Total de hardwares manuais inseridos: {len(manual_hardwares)}")
 
     end_time = time.time()
     print(f"Tempo total de execução: {end_time - start_time:.2f} segundos")
@@ -118,24 +164,18 @@ try:
 except mysql.connector.Error as mysql_error:
     print("Erro no MySQL.")
     print(f"Erro: {mysql_error}")
-    print(f"ID: {hardware['id']}")
-    print(traceback.format_exc())
     postgres_conn.rollback()
     print("Rollback realizado no PostgreSQL.")
 
 except psycopg2.Error as postgres_error:
     print("Erro no PostgreSQL.")
     print(f"Erro: {postgres_error}")
-    print(f"ID: {hardware['id']}")
-    print(traceback.format_exc())
     postgres_conn.rollback()
     print("Rollback realizado no PostgreSQL.")
 
 except Exception as e:
     print("Erro inesperado.")
     print(f"Erro: {e}")
-    print(f"ID: {hardware['id']}")
-    print(traceback.format_exc())
     postgres_conn.rollback()
     print("Rollback realizado no PostgreSQL.")
 
