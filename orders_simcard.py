@@ -193,7 +193,7 @@ try:
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 order['id_order'], order['client_order'], vendor_id, contract_id,
-                operator_id, franchise_id, order['coin_order'], price_order,
+                order['brand_order'], order['model_order'], order['coin_order'], price_order,
                 order['quantity_order'], ativacao, order['variable4_order'],
                 order['payment_order'], envio_sms, order['type_sale_order'],
                 variable2_order, promocao, order['shipping_order'], isentar_frete,
