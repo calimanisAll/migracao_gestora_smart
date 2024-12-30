@@ -20,7 +20,9 @@ postgres_config = {
     'host': os.getenv('POSTGRES_DATABASE_HOST'),
     'user': os.getenv('POSTGRES_DATABASE_USER'),
     'password': os.getenv('POSTGRES_DATABASE_PASSWORD'),
-    'database': os.getenv('POSTGRES_DATABASE'),
+        'database': os.getenv('POSTGRES_DATABASE'),
+    'port': os.getenv('POSTGRES_DATABASE_PORT'),
+    'sslmode': 'require',
 }
 
 # Conexões com bancos

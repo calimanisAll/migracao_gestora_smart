@@ -24,6 +24,8 @@ postgres_config = {
     'user': os.getenv('POSTGRES_DATABASE_USER'),
     'password': os.getenv('POSTGRES_DATABASE_PASSWORD'),
     'database': os.getenv('POSTGRES_DATABASE'),
+    'port': os.getenv('POSTGRES_DATABASE_PORT'),
+    'sslmode': 'require',
 }
 
 # Funções auxiliares
